@@ -1,0 +1,21 @@
+﻿@page "/"
+@page "/index.html"
+@inject IJSRuntime JsRuntime
+@inject System.Net.Http.HttpClient Http
+@using nkast.Wasm.Canvas
+
+<PageTitle>TSMapEditor.Web</PageTitle>
+
+<div id="canvasHolder" style="
+    background: #000;
+    margin:0%;
+    position: fixed;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+    width:100vw;
+    height:100vh;
+">
+    <canvas id="theCanvas" style="touch-action:none;"></canvas>
+</div>

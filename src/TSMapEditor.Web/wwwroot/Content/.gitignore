@@ -1,0 +1,4 @@
+# Editor Content is delivered to the browser via waeassets.zip (built by the BundleEditorAssets
+# target) and extracted into the in-memory filesystem at runtime - nothing is served loose here.
+*
+!.gitignore

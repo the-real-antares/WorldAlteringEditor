@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>TSMapEditor.Web</RootNamespace>
+    <AssemblyName>TSMapEditor.Web</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>$(DefineConstants);BLAZORGL</DefineConstants>
+    <KniPlatform>BlazorGL</KniPlatform>
+    <BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
+  </PropertyGroup>
+
+  <!-- Web host source + the WAE source globbed from the sibling desktop project (no file moving).
+       Excludes: WinForms entry point, the Roslyn-scripting runner, the Win32 IME handler,
+       the bundled Config/Scripts *.cs (compiled on demand, not part of the assembly), build output. -->
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="WebProgram.cs" />
+    <Compile Include="Pages/Index.razor.cs" />
+    <Compile Include="..\TSMapEditor\**\*.cs"
+             Exclude="..\TSMapEditor\obj\**\*.cs;..\TSMapEditor\bin\**\*.cs;..\TSMapEditor\Program.cs;..\TSMapEditor\Properties\AssemblyInfo.cs;..\TSMapEditor\UI\IME\WinFormsIMEHandler.cs;..\TSMapEditor\Config\**\*.cs" />
+  </ItemGroup>
+
+  <!-- KNI (nkast) framework + Blazor WebGL platform backend. -->
+  <ItemGroup>
+    <PackageReference Include="nkast.Xna.Framework" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Content" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Graphics" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Audio" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Media" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Input" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Game" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Devices" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.Storage" Version="4.2.9001" />
+    <PackageReference Include="nkast.Xna.Framework.XR" Version="4.2.9001" />
+    <PackageReference Include="nkast.Kni.Platform.Blazor.GL" Version="4.2.9001.2" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.17" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.17" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Managed deps WAE shares (ported as-is), plus our XNAUI-on-KNI. NOT referenced:
+       MonoGame.Framework.WindowsDX, Rampastring.XNAUI.WindowsDX, Westwind.Scripting, ImeSharp. -->
+  <ItemGroup>
+    <PackageReference Include="Rampastring.Tools" Version="2.0.7" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.11" />
+    <PackageReference Include="TextCopy" Version="6.2.1" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <!-- Keeps ScriptRunner.cs compiling. Runtime Roslyn emit won't work in WASM; the Run Script
+         feature is a later precompile-to-assembly task, but this unblocks the build now. -->
+    <PackageReference Include="Westwind.Scripting" Version="1.3.3" />
+    <Reference Include="Rampastring.XNAUI">
+      <HintPath>..\..\..\Rampastring.XNAUI\bin\BlazorRelease\net8.0\Rampastring.XNAUI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Bundle the editor's Config and Content trees into wwwroot/waeassets.zip so the browser host can
+       extract them into its in-memory filesystem on startup. Regenerated on every build so the bundle
+       always matches the current branch's configuration; the zip itself is not committed. -->
+  <Target Name="BundleEditorAssets" BeforeTargets="BeforeBuild;BeforeRebuild">
+    <PropertyGroup>
+      <AssetStagingDir>$(IntermediateOutputPath)waeassets\</AssetStagingDir>
+      <AssetZipPath>$(MSBuildProjectDirectory)\wwwroot\waeassets.zip</AssetZipPath>
+    </PropertyGroup>
+    <ItemGroup>
+      <_EditorConfigAsset Include="..\TSMapEditor\Config\**\*" />
+      <_EditorContentAsset Include="..\TSMapEditor\Content\**\*" />
+    </ItemGroup>
+    <RemoveDir Directories="$(AssetStagingDir)" />
+    <Copy SourceFiles="@(_EditorConfigAsset)" DestinationFiles="@(_EditorConfigAsset->'$(AssetStagingDir)Config\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_EditorContentAsset)" DestinationFiles="@(_EditorContentAsset->'$(AssetStagingDir)Content\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Delete Files="$(AssetZipPath)" />
+    <ZipDirectory SourceDirectory="$(AssetStagingDir)" DestinationFile="$(AssetZipPath)" />
+  </Target>
+
+</Project>
