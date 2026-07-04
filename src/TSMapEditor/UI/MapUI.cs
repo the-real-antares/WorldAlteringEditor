@@ -242,7 +242,7 @@ namespace TSMapEditor.UI
                     }
                 }
 #else
-                mapUI.ExtractMegamapTo(e, Path.Combine(Environment.CurrentDirectory, "megamap.png"));
+                mapView.ExtractMegamapTo(e, Path.Combine(Environment.CurrentDirectory, "megamap.png"));
 #endif
             }
         }

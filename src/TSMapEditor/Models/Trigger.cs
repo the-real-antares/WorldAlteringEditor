@@ -3,7 +3,7 @@ using Rampastring.Tools;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Windows.Forms;
+using TSMapEditor.Misc;
 using TSMapEditor.CCEngine;
 using TSMapEditor.Misc;
 using TSMapEditor.Models.Enums;
@@ -335,7 +335,7 @@ namespace TSMapEditor.Models
             tag.Serialize(memoryStream);
 
             bytes = memoryStream.ToArray();
-            Clipboard.SetData(Constants.ClipboardTriggerFormatValue, bytes);
+            CrossPlatformClipboard.SetData(Constants.ClipboardTriggerFormatValue, bytes);
         }
 
         public static (Trigger, Tag) GetTriggerAndTagFromClipboard(Map map)
@@ -343,7 +343,7 @@ namespace TSMapEditor.Models
             if (!HasTriggerInClipboard())
                 return (null, null);
 
-            var bytes = (byte[])Clipboard.GetData(Constants.ClipboardTriggerFormatValue);
+            var bytes = (byte[])CrossPlatformClipboard.GetData(Constants.ClipboardTriggerFormatValue);
             using var memoryStream = new MemoryStream(bytes);
 
             var trigger = new Trigger(map.GetNewUniqueInternalId());
@@ -360,7 +360,7 @@ namespace TSMapEditor.Models
 
         public static bool HasTriggerInClipboard()
         {
-            return Clipboard.ContainsData(Constants.ClipboardTriggerFormatValue);
+            return CrossPlatformClipboard.ContainsData(Constants.ClipboardTriggerFormatValue);
         }
     }
 }

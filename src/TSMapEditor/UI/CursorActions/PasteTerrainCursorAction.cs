@@ -1,4 +1,5 @@
 ﻿using Rampastring.Tools;
+using TSMapEditor.Misc;
 using System;
 using System.Collections.Generic;
 using Rampastring.XNAUI.Input;
@@ -82,7 +83,7 @@ namespace TSMapEditor.UI.CursorActions
 
             originLevelOffset = 0;
 
-            if (!System.Windows.Forms.Clipboard.ContainsData(Constants.ClipboardMapDataFormatValue))
+            if (!CrossPlatformClipboard.ContainsData(Constants.ClipboardMapDataFormatValue))
             {
                 Logger.Log(nameof(PasteTerrainCursorAction) + ": invalid clipboard data format, exiting action");
                 ExitAction();
@@ -91,7 +92,7 @@ namespace TSMapEditor.UI.CursorActions
 
             byte[] data;
 
-            object clipboardContents = System.Windows.Forms.Clipboard.GetData(Constants.ClipboardMapDataFormatValue);
+            object clipboardContents = CrossPlatformClipboard.GetData(Constants.ClipboardMapDataFormatValue);
             if (clipboardContents == null)
             {
                 Logger.Log($"WARNING: {nameof(PasteTerrainCursorAction)}: Clipboard data is null");

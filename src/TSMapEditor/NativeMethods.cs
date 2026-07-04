@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 
 namespace TSMapEditor
 {
     public static class NativeMethods
     {
+#if WINDOWS
         [DllImport("gdi32.dll")]
         private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
 
@@ -47,5 +48,14 @@ namespace TSMapEditor
         {
             FreeConsole();
         }
+#else
+        // Non-Windows (e.g. browser) builds have no Win32 GDI/console APIs.
+        // 96 is the standard baseline DPI; browsers apply their own devicePixelRatio.
+        public static int GetScreenDPI() => 96;
+
+        public static void CreateConsole() { }
+
+        public static void DisableConsole() { }
+#endif
     }
 }

@@ -65,6 +65,12 @@ namespace TSMapEditor.Misc
             DisposeWatcher();
 
             FilePath = filePath;
+
+            // FileSystemWatcher is not supported in the browser (WASM). External-edit auto-reload
+            // is unavailable there (the map lives in the virtual filesystem), so skip watching.
+            if (OperatingSystem.IsBrowser())
+                return;
+
             watcher = new FileSystemWatcher(Path.GetDirectoryName(filePath), Path.GetFileName(filePath));
             watcher.EnableRaisingEvents = true;
             watcher.Created += Watcher_Created;

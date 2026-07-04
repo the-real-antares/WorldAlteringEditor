@@ -457,16 +457,25 @@ namespace TSMapEditor
 
         public static string NormalizePath(string path)
         {
+            string result;
             if (path.Contains("../") || path.Contains("..\\"))
             {
-                return Path.GetFullPath(path)
-                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .ToUpperInvariant();
+                result = Path.GetFullPath(path)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
+            else
+            {
+                result = Path.GetFullPath(new Uri(path).LocalPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
 
-            return Path.GetFullPath(new Uri(path).LocalPath)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                .ToUpperInvariant();
+#if WINDOWS
+            // Windows filesystems are case-insensitive, so upper-casing normalizes paths for
+            // comparison. On a case-sensitive filesystem (e.g. the browser's virtual FS) this
+            // would break lookups (e.g. /game -> /GAME), so it must only run on Windows.
+            result = result.ToUpperInvariant();
+#endif
+            return result;
         }
 
         public static Texture2D RenderTextureAsSmaller(Texture2D existingTexture, RenderTarget2D renderTarget, GraphicsDevice graphicsDevice)

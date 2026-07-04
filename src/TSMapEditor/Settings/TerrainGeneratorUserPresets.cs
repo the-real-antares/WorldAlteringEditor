@@ -116,6 +116,6 @@ namespace TSMapEditor.Settings
             isDirty = true;
         }
 
-        private string GetConfigFilePath() => Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), Constants.UserDataFolder, ConfigFileName);
+        private string GetConfigFilePath() => Path.Combine(Environment.CurrentDirectory, Constants.UserDataFolder, ConfigFileName);
     }
 }

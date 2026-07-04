@@ -27,7 +27,7 @@ namespace TSMapEditor.Misc
         {
             var now = DateTime.Now;
             string timestamp = $"{now.Year}_{now.Month:D2}_{now.Day:D2}_{now.Hour:D2}_{now.Minute:D2}_{now.Second:D2}";
-            map.AutoSave(Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), AutoSavesDirectory, $"autosave_{timestamp}{MapFileExtension}"));
+            map.AutoSave(Path.Combine(Environment.CurrentDirectory, AutoSavesDirectory, $"autosave_{timestamp}{MapFileExtension}"));
         }
 
         public string Update(TimeSpan elapsedTime)
@@ -67,7 +67,7 @@ namespace TSMapEditor.Misc
         {
             Logger.Log("Purging old auto-saves.");
 
-            string path = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), AutoSavesDirectory);
+            string path = Path.Combine(Environment.CurrentDirectory, AutoSavesDirectory);
 
             if (!Directory.Exists(path))
             {

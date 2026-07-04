@@ -408,7 +408,14 @@ namespace TSMapEditor.Rendering
                 alphaPaletteColors[i] = new RGBColor((byte)i, (byte)i, (byte)i);
             alphaPalette = new XNAPalette("AlphaPalette", alphaPaletteColors, graphicsDevice, false);
 
+#if WINDOWS
             if (UserSettings.Instance.MultithreadedTextureLoading)
+#else
+            // WebAssembly is single-threaded: the parallel tasks queue onto the only thread, and
+            // Task.WaitAll blocks that thread before they can ever run -> deadlock (the app "hangs").
+            // Always load textures sequentially in the browser.
+            if (false)
+#endif
             {
                 var task1 = Task.Factory.StartNew(() => ReadTileTextures());
                 var task2 = Task.Factory.StartNew(() => ReadTerrainObjectTextures(rules.TerrainTypes));
@@ -817,9 +824,7 @@ namespace TSMapEditor.Rendering
                     loadedShpName = shpFileName;
 
                     if (shpData == null)
-                    {
                         continue;
-                    }
                 }
 
                 // Palette override in RA2/YR
@@ -1635,6 +1640,7 @@ namespace TSMapEditor.Rendering
         /// </summary>
         public void DisposeAll()
         {
+#if WINDOWS
             //var task1 = Task.Factory.StartNew(() => DisposeObjectImagesFromArray(TerrainObjectTextures));
             //var task2 = Task.Factory.StartNew(() => DisposeObjectImagesFromArray(BuildingTextures));
             var task3 = Task.Factory.StartNew(() => DisposeObjectImagesFromArray(BuildingTurretModels));
@@ -1651,6 +1657,16 @@ namespace TSMapEditor.Rendering
             //var task14 = Task.Factory.StartNew(() => DisposeObjectImagesFromArray(AnimTextures));
             //Task.WaitAll(task1, task2, task3, task4, task5, task6, task7, task8, task9, task10, task11, task12, task13, task14);
             Task.WaitAll(task3, task4, task6, task7, task8, task9, task13);
+#else
+            // Single-threaded WASM: dispose sequentially to avoid the Task.WaitAll deadlock.
+            DisposeObjectImagesFromArray(BuildingTurretModels);
+            DisposeObjectImagesFromArray(BuildingBarrelModels);
+            DisposeObjectImagesFromArray(UnitModels);
+            DisposeObjectImagesFromArray(UnitTurretModels);
+            DisposeObjectImagesFromArray(UnitBarrelModels);
+            DisposeObjectImagesFromArray(AircraftModels);
+            spriteSheets.ForEach(tex2D => tex2D.Dispose());
+#endif
 
             spriteSheets.Clear();
             terrainGraphicsList.Clear();

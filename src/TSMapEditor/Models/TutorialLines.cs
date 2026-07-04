@@ -70,6 +70,11 @@ namespace TSMapEditor.Models
 
         private void SetUpFSW()
         {
+            // FileSystemWatcher is not supported in the browser (WASM). The tutorial lines are
+            // still read once in the constructor; only live hot-reload is skipped.
+            if (OperatingSystem.IsBrowser())
+                return;
+
             string directoryPath = Path.GetDirectoryName(iniPath);
             if (!Directory.Exists(directoryPath))
             {

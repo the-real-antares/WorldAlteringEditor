@@ -12,7 +12,9 @@ using MessageBoxButtons = TSMapEditor.UI.Windows.MessageBoxButtons;
 
 #if WINDOWS
 using System.Windows.Forms;
+#if WINDOWS
 using Microsoft.Win32;
+#endif
 #endif
 
 namespace TSMapEditor.UI
@@ -268,6 +270,7 @@ namespace TSMapEditor.UI
 
         private void ReadGameInstallDirectoryFromRegistry()
         {
+#if WINDOWS
             string[] pathsToLookup = Constants.GameRegistryInstallPath.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
             if (pathsToLookup.Length == 0)
@@ -335,6 +338,7 @@ namespace TSMapEditor.UI
                 tbGameDirectory.Text = string.Empty;
                 Logger.Log("Failed to read game installation path from the Windows registry! Exception message: " + ex.Message);
             }
+#endif
         }
 
         private void TbGameDirectory_TextChanged(object sender, EventArgs e)
@@ -417,8 +421,25 @@ namespace TSMapEditor.UI
                     InputIgnoreTime = TimeSpan.FromSeconds(Constants.UIAccidentalClickPreventionTime);
                 }
             }
+#else
+            if (Misc.WebFileAccess.IsAvailable)
+                _ = BrowseGameDirectoryInBrowserAsync();
 #endif
         }
+
+#if !WINDOWS
+        private async System.Threading.Tasks.Task BrowseGameDirectoryInBrowserAsync()
+        {
+            // Opens the browser folder picker and loads the chosen game directory into the
+            // virtual filesystem; the returned virtual path becomes the game directory.
+            string path = await Misc.WebFileAccess.PickGameDirectoryAsync();
+            if (!string.IsNullOrEmpty(path))
+            {
+                tbGameDirectory.Text = path;
+                InputIgnoreTime = TimeSpan.FromSeconds(Constants.UIAccidentalClickPreventionTime);
+            }
+        }
+#endif
 
         private void BtnBrowseMapPath_LeftClick(object sender, EventArgs e)
         {

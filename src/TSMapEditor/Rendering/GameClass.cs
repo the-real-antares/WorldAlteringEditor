@@ -18,7 +18,7 @@ using TSMapEditor.Misc;
 using TSMapEditor.Settings;
 using TSMapEditor.UI;
 
-#if !DEBUG
+#if !DEBUG && WINDOWS
 using System.Windows.Forms;
 #endif
 
@@ -34,7 +34,9 @@ namespace TSMapEditor.Rendering
         {
 #if !DEBUG
             AppDomain.CurrentDomain.UnhandledException += (s, e) => HandleUnhandledException((Exception)e.ExceptionObject);
+#if WINDOWS
             Application.ThreadException += (s, e) => HandleUnhandledException(e.Exception);
+#endif
 #endif
             Program.DisableExceptionHandler();
 
@@ -102,9 +104,15 @@ namespace TSMapEditor.Rendering
             Logger.Log("Exiting.");
 
             windowManager?.HideWindow();
-            System.Windows.Forms.MessageBox.Show("The map editor has crashed." + Environment.NewLine + Environment.NewLine +
+            string crashMessage = "The map editor has crashed." + Environment.NewLine + Environment.NewLine +
                 "Exception information logged into except.txt:" + Environment.NewLine + Environment.NewLine +
-                sb.ToString());
+                sb.ToString();
+#if WINDOWS
+            System.Windows.Forms.MessageBox.Show(crashMessage);
+#else
+            // No native message box in the browser; surface the crash to the console/log.
+            Console.WriteLine(crashMessage);
+#endif
 
             Environment.Exit(255);
         }
@@ -164,6 +172,18 @@ namespace TSMapEditor.Rendering
 
             menuWidth = (int)(menuWidth * dpi_ratio);
             menuHeight = (int)(menuHeight * dpi_ratio);
+
+#if !WINDOWS
+            // In the browser the drawing surface is the HTML canvas, sized to the window by the JS
+            // host. Make the window/backbuffer match it so the menu scales to fill the screen and
+            // mouse coordinates map correctly; the menu still renders at menuRenderWidth x Height.
+            var _pp = GraphicsDevice.PresentationParameters;
+            if (_pp.BackBufferWidth > menuWidth && _pp.BackBufferHeight > menuHeight)
+            {
+                menuWidth = _pp.BackBufferWidth;
+                menuHeight = _pp.BackBufferHeight;
+            }
+#endif
 
 #if WINDOWS
             // If the user has a very large display at 100% DPI, it's probably best to integer-upscale the main menu.

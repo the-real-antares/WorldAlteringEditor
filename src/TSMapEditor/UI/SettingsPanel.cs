@@ -2,7 +2,9 @@
 using Rampastring.XNAUI.XNAControls;
 using System;
 using System.Globalization;
+#if WINDOWS
 using System.Windows.Forms;
+#endif
 using TSMapEditor.GameMath;
 using TSMapEditor.Misc;
 using TSMapEditor.Settings;
@@ -106,8 +108,14 @@ namespace TSMapEditor.UI
 
             const int MinWidth = 1024;
             const int MinHeight = 600;
+#if WINDOWS
             int MaxWidth = Screen.PrimaryScreen.Bounds.Width;
             int MaxHeight = Screen.PrimaryScreen.Bounds.Height;
+#else
+            // No system display metrics in the browser; allow up to a large virtual desktop.
+            int MaxWidth = 3840;
+            int MaxHeight = 2160;
+#endif
 
             ddRenderScale = FindChild<XNADropDown>(nameof(ddRenderScale));
             var renderScales = new double[] { 4.0, 2.5, 3.0, 2.5, 2.0, 1.75, 1.5, 1.25, 1.0, 0.75, 0.5 };

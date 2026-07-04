@@ -213,8 +213,7 @@ namespace TSMapEditor.UI
             InitialDisplayModeSet = true;
 
             Game.Window.AllowUserResizing = true;
-            var form = (System.Windows.Forms.Form)System.Windows.Forms.Form.FromHandle(Game.Window.Handle);
-
+#if WINDOWS
             var screen = System.Windows.Forms.Screen.FromHandle(Game.Window.Handle);
             int width = screen.Bounds.Width - 300;
             int height = screen.Bounds.Height - 200;
@@ -224,6 +223,21 @@ namespace TSMapEditor.UI
                 width = screen.Bounds.Width;
                 height = screen.Bounds.Height;
             }
+#else
+            // Size to the actual browser canvas. The JS host sets the canvas drawing buffer to the
+            // window size; KNI exposes that via the GraphicsDevice viewport / backbuffer. The window
+            // size drives both UI layout and mouse-coordinate mapping, so a mismatch makes every
+            // click land in the wrong place.
+            // Use the backbuffer (the real canvas size) rather than the viewport: the main menu set
+            // the viewport to its 800x600 render resolution, so reading the viewport here would size
+            // the whole editor to 800x600. The backbuffer still reflects the full HTML-canvas size.
+            var pp = GraphicsDevice.PresentationParameters;
+            var vp = GraphicsDevice.Viewport;
+            var cb = Game.Window.ClientBounds;
+            int width = pp.BackBufferWidth > 0 ? pp.BackBufferWidth : (cb.Width > 0 ? cb.Width : (vp.Width > 0 ? vp.Width : 1280));
+            int height = pp.BackBufferHeight > 0 ? pp.BackBufferHeight : (cb.Height > 0 ? cb.Height : (vp.Height > 0 ? vp.Height : 800));
+            bool borderless = UserSettings.Instance.FullscreenWindowed;
+#endif
 
             WindowManager.InitGraphicsMode(width, height, borderless);
             RefreshRenderResolution();

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using TSMapEditor.Misc;
 using TSMapEditor.GameMath;
 using TSMapEditor.Models;
 using TSMapEditor.Mutations.Classes;
@@ -113,7 +114,7 @@ namespace TSMapEditor.UI.CursorActions
                 }
             }
 
-            System.Windows.Forms.Clipboard.SetData(Constants.ClipboardMapDataFormatValue, copiedMapData.Serialize());
+            CrossPlatformClipboard.SetData(Constants.ClipboardMapDataFormatValue, copiedMapData.Serialize());
         }
     }
 }

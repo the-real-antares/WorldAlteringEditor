@@ -382,10 +382,19 @@ namespace TSMapEditor.Rendering
 
         private RenderTarget2D CreateFullMapRenderTarget(SurfaceFormat surfaceFormat, DepthFormat depthFormat = DepthFormat.None)
         {
-           return new RenderTarget2D(GraphicsDevice,
-               Map.WidthInPixels,
-               Map.HeightInPixels + (Constants.CellHeight * Constants.MaxMapHeightLevel), false, surfaceFormat,
-               depthFormat, 0, RenderTargetUsage.PreserveContents);
+            int width = Map.WidthInPixels;
+            int height = Map.HeightInPixels + (Constants.CellHeight * Constants.MaxMapHeightLevel);
+#if !WINDOWS
+            // WebGL / KNI HiDef caps textures & render targets at 4096. Whole-map render targets
+            // exceed that for normal map sizes, so clamp to avoid a hard crash. Maps larger than
+            // ~4096px are clipped to the top-left region until viewport-based rendering is added.
+            width = System.Math.Min(width, 4096);
+            height = System.Math.Min(height, 4096);
+#endif
+            return new RenderTarget2D(GraphicsDevice,
+                width,
+                height, false, surfaceFormat,
+                depthFormat, 0, RenderTargetUsage.PreserveContents);
         }
 
         public void DrawVisibleMapPortion()
@@ -1614,6 +1623,17 @@ namespace TSMapEditor.Rendering
 
         public void Draw(bool isActive, TechnoBase technoUnderCursor, MapTile tileUnderCursor, CursorAction cursorAction)
         {
+#if !WINDOWS
+            // In the browser a freshly created/loaded map opens with the camera at (0,0), which for
+            // an isometric map is the empty corner above-left of the terrain diamond. Center it on the
+            // map on the first draw, once the control has its real (render-resolution) size.
+            if (!initialCameraCentered && Width > 0 && Height > 0)
+            {
+                initialCameraCentered = true;
+                Camera.CenterOnMapCenterCell();
+            }
+#endif
+
             if (isActive && tileUnderCursor != null && cursorAction != null)
             {
                 cursorAction.PreMapDraw(tileUnderCursor.CoordsToPoint());
@@ -1734,6 +1754,9 @@ namespace TSMapEditor.Rendering
             mapRenderSourceRectangle = new Rectangle(sourceX, sourceY, zoomedWidth, zoomedHeight);
             mapRenderDestinationRectangle = new Rectangle(destinationX, destinationY, destinationWidth, destinationHeight);
         }
+#if !WINDOWS
+        private bool initialCameraCentered = false;
+#endif
 
         private void DrawWorld()
         {
@@ -1818,8 +1841,13 @@ namespace TSMapEditor.Rendering
             Renderer.PopRenderTarget();
 
             // Last, draw the composite render target directly to the screen.
-
+#if WINDOWS
             Renderer.PushSettings(new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, null));
+#else
+            // On WebGL the composite render target's alpha reads back as 0, so an AlphaBlend draw
+            // would make the whole map invisible against the page. Composite it opaquely instead.
+            Renderer.PushSettings(new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.Opaque, SamplerState.PointClamp, null, null, null));
+#endif
 
             Renderer.DrawTexture(compositeRenderTarget,
                 mapRenderSourceRectangle,
