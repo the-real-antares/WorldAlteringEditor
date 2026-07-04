@@ -9,6 +9,15 @@
 #define PS_SHADERMODEL ps_4_0
 #endif
 
+// SurfaceFormat.Alpha8 (paletted sprites: the palette index lives in this channel) is exposed as
+// RED on OpenGL/WebGL2 (Alpha8 -> R8) but as ALPHA on Direct3D. Full-colour voxel textures are
+// real RGBA, so their transparency is always in .a.
+#if OPENGL
+#define ALPHA8(tex) ((tex).r)
+#else
+#define ALPHA8(tex) ((tex).a)
+#endif
+
 // Shader for rendering objects.
 // Can render objects in either paletted or RGBA mode,
 // and can also draw shadows.
@@ -79,8 +88,14 @@ PixelShaderOutput MainPS(VertexShaderOutput input)
     // otherwise the output will be black!
     float4 tex = MainTexture.Sample(MainSampler, input.TextureCoordinates);
 
-    // Discard transparent areas
-    clip(tex.a == 0.0f ? -1 : 1);
+    // Discard transparent areas. Paletted (SHP) and shadow sprites are Alpha8 (index/mask in .r on
+    // GL); full-colour voxels are real RGBA (transparency in .a).
+#if OPENGL
+    float transparencyMask = (UsePalette || IsShadow) ? tex.r : tex.a;
+#else
+    float transparencyMask = tex.a;
+#endif
+    clip(transparencyMask == 0.0f ? float4(-1, -1, -1, -1) : float4(1, 1, 1, 1));
 
     if (IsShadow)
     {
@@ -91,7 +106,7 @@ PixelShaderOutput MainPS(VertexShaderOutput input)
         if (UsePalette)
         {
             // Get color from palette
-            float4 paletteColor = PaletteTexture.Sample(PaletteSampler, float2(tex.a, 0.5));
+            float4 paletteColor = PaletteTexture.Sample(PaletteSampler, float2(ALPHA8(tex), 0.5));
 
             // We need to convert the grayscale into remap
             if (UseRemap)

@@ -9,6 +9,13 @@
 #define PS_SHADERMODEL ps_4_0
 #endif
 
+// SurfaceFormat.Alpha8 (the palette index) is RED on OpenGL/WebGL2 (Alpha8 -> R8), ALPHA on D3D.
+#if OPENGL
+#define ALPHA8(tex) ((tex).r)
+#else
+#define ALPHA8(tex) ((tex).a)
+#endif
+
 // Used for drawing paletted graphics in contexts where no depth is required.
 // Particularly, the overlay frame selector.
 
@@ -45,7 +52,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     float4 tex = tex2D(SpriteTextureSampler, input.TextureCoordinates);
 
     // Get color from palette
-    float4 paletteColor = tex2D(PaletteTextureSampler, float2(tex.a, 0.5));
+    float4 paletteColor = tex2D(PaletteTextureSampler, float2(ALPHA8(tex), 0.5));
 
     return paletteColor * Lighting;
 }

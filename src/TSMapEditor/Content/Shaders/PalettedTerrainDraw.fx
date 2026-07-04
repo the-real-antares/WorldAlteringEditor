@@ -9,6 +9,15 @@
 #define PS_SHADERMODEL ps_4_0
 #endif
 
+// SurfaceFormat.Alpha8 (used by paletted sprites/tiles to store the palette index) exposes its
+// single channel as RED on OpenGL/WebGL2 (Alpha8 -> R8), but as ALPHA on Direct3D. Sample the
+// correct channel per backend so the palette index and transparency test work on both.
+#if OPENGL
+#define ALPHA8(tex) ((tex).r)
+#else
+#define ALPHA8(tex) ((tex).a)
+#endif
+
 // Shader for rendering terrain.
 // This is a less capable, but lighter copy of PalettedColorDraw.
 
@@ -76,8 +85,8 @@ PixelShaderOutput MainPS(VertexShaderOutput input)
     // otherwise the output will be black!
     float4 tex = MainTexture.Sample(MainSampler, input.TextureCoordinates);
 
-    // Discard transparent areas
-    clip(tex.a == 0.0f ? -1 : 1);
+    // Discard transparent areas (palette index 0 == transparent)
+    clip(ALPHA8(tex) == 0.0f ? float4(-1, -1, -1, -1) : float4(1, 1, 1, 1));
 
     // Abuse alpha component of color to determine whether we should render with a palette or not
     if (input.Color.a >= 1.0f)
@@ -87,7 +96,7 @@ PixelShaderOutput MainPS(VertexShaderOutput input)
     else
     {
         // Get color from palette
-        float4 paletteColor = PaletteTexture.Sample(PaletteSampler, float2(tex.a, 0.5));
+        float4 paletteColor = PaletteTexture.Sample(PaletteSampler, float2(ALPHA8(tex), 0.5));
 
         // Multiply the color by 2. This is done because unlike map lighting which can exceed 1.0 and go up to 2.0,
         // the color values passed in the pixel shader input are capped at 1.0.
