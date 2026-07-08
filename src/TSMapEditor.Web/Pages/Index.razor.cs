@@ -52,7 +52,35 @@ namespace TSMapEditor.Web.Pages
             if (firstRender)
             {
                 JsRuntime.InvokeAsync<object>("initRenderJS", DotNetObjectReference.Create(this));
+
+                // Forward text copied inside the editor to the browser clipboard.
+                Rampastring.XNAUI.RClipboard.TextSet +=
+                    text => JsRuntime.InvokeVoidAsync("waeClipboardWrite", text);
             }
+        }
+
+        /// <summary>
+        /// Receives composed characters from the page's keydown handler. This channel delivers
+        /// characters that the game platform's text input suppresses, such as AltGr combinations.
+        /// </summary>
+        [JSInvokable]
+        public void OnBrowserCharInput(string text)
+        {
+            if (_game == null || string.IsNullOrEmpty(text))
+                return;
+
+            foreach (char character in text)
+                Rampastring.XNAUI.Input.KeyboardEventInput.TriggerCharEntered(character);
+        }
+
+        /// <summary>
+        /// Receives the operating system clipboard contents from the page's paste handler,
+        /// ahead of the editor processing the paste keypress.
+        /// </summary>
+        [JSInvokable]
+        public void OnBrowserClipboardText(string text)
+        {
+            Rampastring.XNAUI.RClipboard.UpdateFromHost(text);
         }
 
         private bool _failed;
