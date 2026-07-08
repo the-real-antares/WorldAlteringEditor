@@ -30,7 +30,30 @@ function waeFS() {
   return rt.Module.FS;
 }
 
-// Recursively write a picked directory into MEMFS under `root`. Returns files written.
+// Removes any previously loaded game directory and recreates it empty, so picking a
+// different folder never mixes files from two installs. MEMFS paths are plain directories,
+// not mounts, so this has to be a recursive delete.
+function waeResetGameDir(FS, dir) {
+  function rmTree(path) {
+    let entries;
+    try { entries = FS.readdir(path); } catch (e) { return; }
+    for (const name of entries) {
+      if (name === '.' || name === '..')
+        continue;
+      const p = path + '/' + name;
+      if (FS.isDir(FS.stat(p).mode))
+        rmTree(p);
+      else
+        FS.unlink(p);
+    }
+    FS.rmdir(path);
+  }
+  rmTree(dir);
+  FS.mkdirTree(dir);
+}
+
+// Recursively write a picked directory (File System Access API) into MEMFS under `dir`.
+// Returns files written.
 async function waeWalkAndWrite(FS, handle, dir) {
   try { FS.mkdirTree(dir); } catch (e) { /* exists */ }
   let count = 0;
@@ -54,19 +77,69 @@ async function waeWalkAndWrite(FS, handle, dir) {
   return count;
 }
 
+// Writes files picked through an <input type=file webkitdirectory> into MEMFS under `dir`.
+// webkitRelativePath is "PickedFolder/sub/file.ext"; the first segment is stripped.
+async function waeWriteInputFiles(FS, files, dir) {
+  let count = 0;
+  for (const file of files) {
+    const rel = (file.webkitRelativePath || file.name).split('/').slice(1).join('/') || file.name;
+    const name = rel.split('/').pop();
+    if (!WAE_ALLOWED_EXT.has(waeExt(name)))
+      continue;
+    if (waeSkip(name)) {
+      console.log('WAE: skipping large unused archive ' + name);
+      continue;
+    }
+    const p = dir + '/' + rel;
+    const parent = p.slice(0, p.lastIndexOf('/'));
+    try { FS.mkdirTree(parent); } catch (e) { /* exists */ }
+    const buf = new Uint8Array(await file.arrayBuffer());
+    FS.writeFile(p, buf);
+    count++;
+  }
+  return count;
+}
+
+// Folder-picker fallback for browsers without the File System Access API (Firefox, Safari):
+// a hidden <input type=file webkitdirectory>. Resolves to a FileList or null on cancel.
+function waePickViaInput() {
+  let input = document.getElementById('waeDirInput');
+  if (!input) {
+    input = document.createElement('input');
+    input.id = 'waeDirInput';
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.multiple = true;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+  }
+  return new Promise(resolve => {
+    input.value = '';
+    input.onchange = () => resolve(input.files && input.files.length ? input.files : null);
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+}
+
 // Opens the folder picker, loads the chosen game directory into MEMFS at `/game`.
 // Returns the virtual path on success, or an empty string on cancel/error.
 window.waeLoadGameDirectory = async () => {
-  if (!window.showDirectoryPicker) {
-    console.error('WAE: showDirectoryPicker not supported in this browser (Chromium required).');
-    return '';
-  }
   try {
-    const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
     const FS = waeFS();
-    // Fresh mount each time.
-    try { FS.unmount && FS.unmount('/game'); } catch (e) { /* ignore */ }
-    const count = await waeWalkAndWrite(FS, dirHandle, '/game');
+    let count;
+
+    if (window.showDirectoryPicker) {
+      const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+      waeResetGameDir(FS, '/game');
+      count = await waeWalkAndWrite(FS, dirHandle, '/game');
+    } else {
+      const files = await waePickViaInput();
+      if (!files)
+        return '';
+      waeResetGameDir(FS, '/game');
+      count = await waeWriteInputFiles(FS, files, '/game');
+    }
+
     console.log('WAE: loaded ' + count + ' game files into /game');
     return '/game';
   } catch (e) {
