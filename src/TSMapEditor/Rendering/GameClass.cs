@@ -174,14 +174,15 @@ namespace TSMapEditor.Rendering
             menuHeight = (int)(menuHeight * dpi_ratio);
 
 #if !WINDOWS
-            // In the browser the drawing surface is the HTML canvas, sized to the window by the JS
-            // host. Make the window/backbuffer match it so the menu scales to fill the screen and
-            // mouse coordinates map correctly; the menu still renders at menuRenderWidth x Height.
-            var _pp = GraphicsDevice.PresentationParameters;
-            if (_pp.BackBufferWidth > menuWidth && _pp.BackBufferHeight > menuHeight)
+            // In the browser the drawing surface is the HTML canvas, sized to the window by the
+            // page. Adopt its size unconditionally so the menu scales to fill the screen and mouse
+            // coordinates map correctly even on windows smaller than the 800x600 render resolution;
+            // the menu still renders at menuRenderWidth x menuRenderHeight.
+            if (OperatingSystem.IsBrowser())
             {
-                menuWidth = _pp.BackBufferWidth;
-                menuHeight = _pp.BackBufferHeight;
+                var clientBounds = Window.ClientBounds;
+                menuWidth = Math.Max(clientBounds.Width, 1);
+                menuHeight = Math.Max(clientBounds.Height, 1);
             }
 #endif
 

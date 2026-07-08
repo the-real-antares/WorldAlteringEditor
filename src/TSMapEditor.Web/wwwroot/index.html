@@ -73,6 +73,7 @@
     <script src="_content/nkast.Wasm.XR/js/XR.8.0.11.js"></script>
 
     <script src="wae-fileaccess.js"></script>
+    <script src="wae-input.js"></script>
 
     <script>
         function tickJS()
@@ -81,29 +82,35 @@
             window.requestAnimationFrame(tickJS);
         }
 
+        function waeSizeCanvas()
+        {
+            // Size the canvas from the window itself - the same source the game platform uses
+            // for later resizes - so the initial size and resized sizes always agree.
+            var canvas = document.getElementById('theCanvas');
+            if (canvas)
+            {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+        }
+
         window.initRenderJS = (instance) =>
         {
             window.theInstance = instance;
 
-            // set initial canvas size
-            var canvas = document.getElementById('theCanvas');
-            var holder = document.getElementById('canvasHolder');
-            canvas.width = holder.clientWidth;
-            canvas.height = holder.clientHeight;
+            waeSizeCanvas();
             // disable context menu on right click
+            var canvas = document.getElementById('theCanvas');
             canvas.addEventListener("contextmenu", e => e.preventDefault());
-            
+
             // begin game loop
             window.requestAnimationFrame(tickJS);
         };
 
-        window.addEventListener("keydown", function(event)
-        {
-            // Prevent Arrows Keys and Spacebar scrolling the outer page
-            // when running inside an iframe. e.g: itch.io embedding.
-            if ([32, 37, 38, 39, 40].indexOf(event.keyCode) > -1)
-                event.preventDefault();
-        });
+        // Keep the canvas matching the window even before the game platform attaches its own
+        // resize handling (e.g. while assets are still downloading).
+        window.addEventListener("resize", waeSizeCanvas);
+
         window.addEventListener("wheel", function(event)
         {
             // Prevent Mousewheel scrolling the outer page
