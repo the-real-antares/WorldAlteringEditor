@@ -56,7 +56,11 @@ namespace TSMapEditor.UI
                 var overlayType = overlayTypes.Find(o => o.ININame == overlayTypeName);
                 if (overlayType == null)
                 {
-                    throw new INIConfigException($"Overlay type \"{overlayTypeName}\" not found while initializing overlay collection \"{overlayCollection.Name}\"!");
+                    // The editor's collection config may reference types that don't exist in the
+                    // loaded rules (e.g. a DTA-flavored config on RA2). Skip rather than abort.
+                    Rampastring.Tools.Logger.Log($"Overlay type \"{overlayTypeName}\" not found while initializing overlay collection \"{overlayCollection.Name}\"! Skipping entry.");
+                    i++;
+                    continue;
                 }
 
                 if (frame < 0)

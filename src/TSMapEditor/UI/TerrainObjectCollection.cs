@@ -40,7 +40,10 @@ namespace TSMapEditor.UI
                 var terrainType = terrainTypes.Find(o => o.ININame == terrainTypeName);
                 if (terrainType == null)
                 {
-                    throw new INIConfigException($"Terrain object type \"{terrainTypeName}\" not found while initializing terrain object collection \"{terrainObjectCollection.Name}\"!");
+                    // Skip config entries whose type isn't in the loaded rules (e.g. a DTA config on RA2).
+                    Rampastring.Tools.Logger.Log($"Terrain object type \"{terrainTypeName}\" not found while initializing terrain object collection \"{terrainObjectCollection.Name}\"! Skipping entry.");
+                    i++;
+                    continue;
                 }
 
                 entryList.Add(new TerrainObjectCollectionEntry(terrainType));

@@ -263,8 +263,16 @@ namespace TSMapEditor.Models
                 if (bridgeSection == null)
                     continue;
 
-                BridgeType bridgeType = new BridgeType(bridgeSection, rules);
-                Bridges.Add(bridgeType);
+                // Skip bridges referencing types not present in the loaded rules.
+                try
+                {
+                    BridgeType bridgeType = new BridgeType(bridgeSection, rules);
+                    Bridges.Add(bridgeType);
+                }
+                catch (INIConfigException ex)
+                {
+                    Logger.Log($"Skipping bridge \"{bridgeName}\" (incompatible with loaded rules): {ex.Message}");
+                }
             }
         }
 
@@ -284,14 +292,30 @@ namespace TSMapEditor.Models
                 if (overlaySection == null)
                     continue;
 
-                ConnectedOverlayType overlayType = new ConnectedOverlayType(overlaySection, rules);
-                ConnectedOverlays.Add(overlayType);
+                // Skip config sections that reference types not present in the loaded rules
+                // (e.g. a DTA-flavored editor config running on RA2/YR).
+                try
+                {
+                    ConnectedOverlayType overlayType = new ConnectedOverlayType(overlaySection, rules);
+                    ConnectedOverlays.Add(overlayType);
+                }
+                catch (INIConfigException ex)
+                {
+                    Logger.Log($"Skipping connected overlay \"{overlayName}\" (incompatible with loaded rules): {ex.Message}");
+                }
             }
 
             foreach (var connectedOverlay in ConnectedOverlays)
             {
                 IniSection overlaySection = iniFile.GetSection(connectedOverlay.Name);
-                connectedOverlay.InitializeRelatedOverlays(overlaySection, ConnectedOverlays);
+                try
+                {
+                    connectedOverlay.InitializeRelatedOverlays(overlaySection, ConnectedOverlays);
+                }
+                catch (INIConfigException ex)
+                {
+                    Logger.Log($"Skipping related overlays for \"{connectedOverlay.Name}\": {ex.Message}");
+                }
             }
         }
 
@@ -302,6 +326,8 @@ namespace TSMapEditor.Models
 
             foreach (var tiberiumType in rules.TiberiumTypes)
             {
+              try
+              {
                 tiberiumType.Overlays = new List<OverlayType>();
 
                 string overlaysString = iniFile.GetStringValue(sectionName, tiberiumType.ININame, null);
@@ -353,6 +379,11 @@ namespace TSMapEditor.Models
                             $"but it is also set to be associated with Tiberium {tiberiumType.Index} ({tiberiumType.ININame})!");
                     }
                 });
+              }
+              catch (INIConfigException ex)
+              {
+                Logger.Log($"Skipping tiberium overlays for \"{tiberiumType.ININame}\" (incompatible with loaded rules): {ex.Message}");
+              }
             }
         }
 

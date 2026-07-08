@@ -40,7 +40,10 @@ namespace TSMapEditor.UI
                 var smudgeType = smudgeTypes.Find(o => o.ININame == smudgeTypeName);
                 if (smudgeType == null)
                 {
-                    throw new INIConfigException($"Smudge type \"{smudgeTypeName}\" not found while initializing smudge collection \"{smudgeCollection.Name}\"!");
+                    // Skip config entries whose type isn't in the loaded rules (e.g. a DTA config on RA2).
+                    Rampastring.Tools.Logger.Log($"Smudge type \"{smudgeTypeName}\" not found while initializing smudge collection \"{smudgeCollection.Name}\"! Skipping entry.");
+                    i++;
+                    continue;
                 }
 
                 entryList.Add(new SmudgeCollectionEntry(smudgeType));
