@@ -71,10 +71,15 @@
     <ItemGroup>
       <_EditorConfigAsset Include="..\TSMapEditor\Config\**\*" />
       <_EditorContentAsset Include="..\TSMapEditor\Content\**\*" />
+      <!-- MIX archives that ship with the editor itself (loaded from the editor directory).
+           Not every game configuration bundles them. -->
+      <_EditorRootAsset Include="..\TSMapEditor\WAECache.mix" Condition="Exists('..\TSMapEditor\WAECache.mix')" />
+      <_EditorRootAsset Include="..\TSMapEditor\marble.mix" Condition="Exists('..\TSMapEditor\marble.mix')" />
     </ItemGroup>
     <RemoveDir Directories="$(AssetStagingDir)" />
     <Copy SourceFiles="@(_EditorConfigAsset)" DestinationFiles="@(_EditorConfigAsset->'$(AssetStagingDir)Config\%(RecursiveDir)%(Filename)%(Extension)')" />
     <Copy SourceFiles="@(_EditorContentAsset)" DestinationFiles="@(_EditorContentAsset->'$(AssetStagingDir)Content\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(_EditorRootAsset)" DestinationFiles="@(_EditorRootAsset->'$(AssetStagingDir)%(Filename)%(Extension)')" Condition="'@(_EditorRootAsset)' != ''" />
     <Delete Files="$(AssetZipPath)" />
     <ZipDirectory SourceDirectory="$(AssetStagingDir)" DestinationFile="$(AssetZipPath)" />
   </Target>

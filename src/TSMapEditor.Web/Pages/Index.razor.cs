@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.JSInterop;
 using Microsoft.Xna.Framework;
@@ -20,7 +21,7 @@ namespace TSMapEditor.Web.Pages
 
             try
             {
-                byte[] bytes = await Http.GetByteArrayAsync("waeassets.zip");
+                byte[] bytes = await Http.GetByteArrayAsync(GetAssetBundleName());
                 using var ms = new System.IO.MemoryStream(bytes);
                 using var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Read);
                 foreach (var entry in zip.Entries)
@@ -43,6 +44,32 @@ namespace TSMapEditor.Web.Pages
             {
                 Console.WriteLine("Failed to extract editor assets into the virtual filesystem: " + ex);
             }
+        }
+
+        /// <summary>
+        /// Resolves which editor configuration bundle to load. The build bundles the configuration
+        /// of its own branch as waeassets.zip; a deployment can also host bundles for the other
+        /// supported games (waeassets-dta.zip, waeassets-ts.zip, waeassets-yr.zip) and select one
+        /// with a game query parameter, e.g. ?game=dta.
+        /// </summary>
+        private string GetAssetBundleName()
+        {
+            var query = new Uri(Navigation.Uri).Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                foreach (string pair in query.TrimStart('?').Split('&'))
+                {
+                    string[] parts = pair.Split('=');
+                    if (parts.Length == 2 && parts[0] == "game")
+                    {
+                        string game = Uri.UnescapeDataString(parts[1]).ToLowerInvariant();
+                        if (game.Length > 0 && game.Length <= 16 && game.All(char.IsLetterOrDigit))
+                            return $"waeassets-{game}.zip";
+                    }
+                }
+            }
+
+            return "waeassets.zip";
         }
 
         protected override void OnAfterRender(bool firstRender)
