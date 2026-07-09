@@ -455,6 +455,54 @@ namespace TSMapEditor
             }
         }
 
+        /// <summary>
+        /// Resolves a file or directory path within a directory, matching path segments
+        /// case-insensitively when the direct path does not exist. Game data references files
+        /// with arbitrary casing (TIBSUN.MIX vs TibSun.mix, INI/Rules.ini); Windows filesystems
+        /// resolve these transparently, but case-sensitive filesystems - like the browser's
+        /// virtual filesystem - need explicit matching.
+        /// Returns the actual path if found, otherwise null.
+        /// </summary>
+        public static string ResolveFilePathCaseInsensitive(string directory, string relativePath)
+        {
+            string directPath = Path.Combine(directory, relativePath);
+            if (File.Exists(directPath) || Directory.Exists(directPath))
+                return directPath;
+
+            if (OperatingSystem.IsWindows())
+                return null;
+
+            string current = directory;
+            string[] segments = relativePath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string segment in segments)
+            {
+                if (segment == ".")
+                    continue;
+
+                if (!Directory.Exists(current))
+                    return null;
+
+                string match = null;
+
+                foreach (string entry in Directory.EnumerateFileSystemEntries(current))
+                {
+                    if (string.Equals(Path.GetFileName(entry), segment, StringComparison.OrdinalIgnoreCase))
+                    {
+                        match = entry;
+                        break;
+                    }
+                }
+
+                if (match == null)
+                    return null;
+
+                current = match;
+            }
+
+            return current;
+        }
+
         public static string NormalizePath(string path)
         {
             string result;

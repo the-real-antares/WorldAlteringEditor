@@ -356,7 +356,7 @@ namespace TSMapEditor.UI
             bool gameDirectoryVerified = false;
             foreach (string expectedExecutableName in Constants.ExpectedClientExecutableNames)
             {
-                if (File.Exists(Path.Combine(tbGameDirectory.Text, expectedExecutableName)))
+                if (Helpers.ResolveFilePathCaseInsensitive(tbGameDirectory.Text, expectedExecutableName) != null)
                 {
                     gameDirectoryVerified = true;
                     break;
@@ -467,7 +467,8 @@ namespace TSMapEditor.UI
 
             UserSettings.Instance.GameDirectory.UserDefinedValue = gameDirectory;
 
-            string mapPath = Path.Combine(gameDirectory, tbMapPath.Text);
+            string mapPath = Helpers.ResolveFilePathCaseInsensitive(gameDirectory, tbMapPath.Text)
+                ?? Path.Combine(gameDirectory, tbMapPath.Text);
             if (Path.IsPathRooted(tbMapPath.Text))
                 mapPath = tbMapPath.Text;
 

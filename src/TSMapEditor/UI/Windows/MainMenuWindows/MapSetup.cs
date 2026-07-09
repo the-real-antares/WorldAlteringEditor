@@ -70,7 +70,8 @@ namespace TSMapEditor.UI.Windows.MainMenuWindows
             {
                 try
                 {
-                    IniFileEx mapIni = new(Path.Combine(gameDirectory, existingMapPath), FileManager);
+                    IniFileEx mapIni = new(Helpers.ResolveFilePathCaseInsensitive(gameDirectory, existingMapPath)
+                        ?? Path.Combine(gameDirectory, existingMapPath), FileManager);
 
                     MapLoader.PreCheckMapIni(mapIni);
 

@@ -32,7 +32,12 @@ namespace TSMapEditor.CCEngine
             var iniFile = Helpers.ReadConfigINI("FileManagerConfig.ini");
 
             AddSearchDirectory(Environment.CurrentDirectory);
-            iniFile.DoForEveryValueInSection("SearchDirectories", v => AddSearchDirectory(Path.Combine(GameDirectory, v)));
+            // Always search the game directory root itself. RA2/YR keep their MIX files there,
+            // and relying on an empty SearchDirectories entry is fragile (it can be dropped).
+            if (!string.IsNullOrWhiteSpace(GameDirectory))
+                AddSearchDirectory(GameDirectory);
+            iniFile.DoForEveryValueInSection("SearchDirectories", v => AddSearchDirectory(
+                Helpers.ResolveFilePathCaseInsensitive(GameDirectory, v) ?? Path.Combine(GameDirectory, v)));
             iniFile.DoForEveryValueInSection("MIXFiles", ProcessMixFileEntry);
             iniFile.DoForEveryValueInSection("StringTables", LoadStringTable);
         }
@@ -122,26 +127,24 @@ namespace TSMapEditor.CCEngine
         /// <returns>True if the MIX file was successfully loaded, otherwise false.</returns>
         private bool LoadMixFromDirectories(string name)
         {
-            string searchDir = null;
+            string mixPath = null;
 
             foreach (string dir in searchDirectories)
             {
-                if (File.Exists(Path.Combine(dir, name)))
-                {
-                    searchDir = dir;
+                mixPath = Helpers.ResolveFilePathCaseInsensitive(dir, name);
+                if (mixPath != null)
                     break;
-                }
             }
 
-            if (searchDir == null)
+            if (mixPath == null)
                 return false;
 
-            Logger.Log("Loading MIX file " + name + " from " + searchDir);
+            Logger.Log("Loading MIX file " + name + " from " + Path.GetDirectoryName(mixPath));
             var mixFile = new MixFile();
 
             try
             {
-                mixFile.Parse(Path.Combine(searchDir, name));
+                mixFile.Parse(mixPath);
             }
             catch (Exception ex)
             {
@@ -221,7 +224,8 @@ namespace TSMapEditor.CCEngine
                 if (!Directory.Exists(searchDirectory))
                     continue;
 
-                var files = Directory.GetFiles(searchDirectory, name);
+                var files = Directory.GetFiles(searchDirectory, name,
+                    new EnumerationOptions() { MatchCasing = MatchCasing.CaseInsensitive });
                 foreach (string file in files)
                     LoadMixFile(Path.GetFileName(file));
             }
@@ -252,9 +256,9 @@ namespace TSMapEditor.CCEngine
         {
             foreach (string searchDirectory in searchDirectories)
             {
-                string fullPath = Path.Combine(searchDirectory, fileName);
+                string fullPath = Helpers.ResolveFilePathCaseInsensitive(searchDirectory, fileName);
 
-                if (File.Exists(fullPath))
+                if (fullPath != null)
                     return fullPath;
             }
 
@@ -268,8 +272,8 @@ namespace TSMapEditor.CCEngine
 
             foreach (string searchDirectory in searchDirectories)
             {
-                string looseFilePath = Path.Combine(searchDirectory, name);
-                if (File.Exists(looseFilePath))
+                string looseFilePath = Helpers.ResolveFilePathCaseInsensitive(searchDirectory, name);
+                if (looseFilePath != null)
                 {
                     if (UserSettings.Instance.LogFileLoading)
                         Logger.Log("    File found from " + searchDirectory);

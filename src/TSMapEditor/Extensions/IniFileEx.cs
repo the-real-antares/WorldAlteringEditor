@@ -62,8 +62,8 @@ public class IniFileEx: IniFile
             return new();
         }
 
-        string iniPath = Path.Combine(gameDirectory, filePath);
-        if (File.Exists(iniPath))
+        string iniPath = TSMapEditor.Helpers.ResolveFilePathCaseInsensitive(gameDirectory, filePath);
+        if (iniPath != null)
         {
             Logger.Log("INI file " + filePath + " found from " + gameDirectory);
             return new(iniPath, ccFileManager);
