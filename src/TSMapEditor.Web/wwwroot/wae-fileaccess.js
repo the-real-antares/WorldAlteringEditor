@@ -121,14 +121,76 @@ function waePickViaInput() {
   });
 }
 
+// Downloads server-hosted game files (freeware games only) into MEMFS under `dir`.
+// The manifest lists files as { path, size, parts? }; parts are URL suffixes relative
+// to the manifest directory, used to split files past CDN single-file size limits.
+async function waeDownloadHostedFiles(FS, game, dir) {
+  const base = 'gamefiles/' + game + '/';
+  const manifestResponse = await fetch(base + 'manifest.json', { cache: 'no-cache' });
+  if (!manifestResponse.ok)
+    throw new Error('no hosted files for "' + game + '" (HTTP ' + manifestResponse.status + ')');
+  const manifest = await manifestResponse.json();
+
+  waeResetGameDir(FS, dir);
+  const totalBytes = manifest.files.reduce((n, f) => n + (f.size || 0), 0);
+  let doneBytes = 0;
+  let count = 0;
+
+  // A few files in flight at a time: keeps the pipe full without holding
+  // too many decoded buffers in memory at once.
+  const queue = manifest.files.slice();
+  async function worker() {
+    for (;;) {
+      const entry = queue.shift();
+      if (!entry)
+        return;
+      const parts = entry.parts || [entry.path];
+      const buffers = [];
+      for (const part of parts) {
+        const response = await fetch(base + part);
+        if (!response.ok)
+          throw new Error('failed to fetch ' + part + ' (HTTP ' + response.status + ')');
+        buffers.push(new Uint8Array(await response.arrayBuffer()));
+      }
+      const total = buffers.reduce((n, b) => n + b.length, 0);
+      let merged;
+      if (buffers.length === 1) {
+        merged = buffers[0];
+      } else {
+        merged = new Uint8Array(total);
+        let offset = 0;
+        for (const b of buffers) { merged.set(b, offset); offset += b.length; }
+      }
+      const p = dir + '/' + entry.path;
+      const parent = p.slice(0, p.lastIndexOf('/'));
+      if (parent !== dir)
+        try { FS.mkdirTree(parent); } catch (e) { /* exists */ }
+      FS.writeFile(p, merged);
+      count++;
+      doneBytes += total;
+      if (totalBytes > 0)
+        document.title = 'WAE - downloading game files ' + Math.round(100 * doneBytes / totalBytes) + '%';
+    }
+  }
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  document.title = 'TSMapEditor.Web';
+  return count;
+}
+
 // Opens the folder picker, loads the chosen game directory into MEMFS at `/game`.
+// With ?files=hosted in the page URL, downloads the server-hosted freeware game files
+// instead, so no local game installation is needed.
 // Returns the virtual path on success, or an empty string on cancel/error.
 window.waeLoadGameDirectory = async () => {
   try {
     const FS = waeFS();
+    const params = new URLSearchParams(window.location.search);
     let count;
 
-    if (window.showDirectoryPicker) {
+    if (params.get('files') === 'hosted') {
+      const game = (params.get('game') || 'yr').toLowerCase();
+      count = await waeDownloadHostedFiles(FS, game, '/game');
+    } else if (window.showDirectoryPicker) {
       const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
       waeResetGameDir(FS, '/game');
       count = await waeWalkAndWrite(FS, dirHandle, '/game');
