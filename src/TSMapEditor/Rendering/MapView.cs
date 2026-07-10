@@ -29,6 +29,7 @@ namespace TSMapEditor.Rendering
         Camera Camera { get; }
         Texture2D MinimapTexture { get; }
         HashSet<object> MinimapUsers { get; }
+        bool IsMapClippedByRenderWindow { get; }
     }
 
     /// <summary>
@@ -128,6 +129,26 @@ namespace TSMapEditor.Rendering
 
         private TerrainBatcher terrainBatcher;
         private GameObjectBatcher gameObjectBatcher;
+
+        /// <summary>
+        /// Top-left corner of the map render targets in map pixel space. Always zero when the
+        /// render targets cover the whole map; on platforms whose texture size limit is smaller
+        /// than the map, the render targets form a sliding window into the map anchored here.
+        /// </summary>
+        private Point2D renderWindowOrigin = Point2D.Zero;
+
+        /// <summary>
+        /// Translation by -renderWindowOrigin for sprite-batch drawing in map pixel space,
+        /// or null when the window is at the origin.
+        /// </summary>
+        private Matrix? mapSpaceTransform = null;
+
+        /// <summary>
+        /// Whether the map is larger than the render targets, making them a sliding window.
+        /// </summary>
+        public bool IsMapClippedByRenderWindow =>
+            mapRenderTarget != null &&
+            (mapRenderTarget.Width < Map.WidthInPixels || mapRenderTarget.Height < Map.HeightInPixelsWithCellHeight);
 
         private bool mapInvalidated;
         private bool cameraMoved;
@@ -299,6 +320,14 @@ namespace TSMapEditor.Rendering
             alphaRenderTarget = CreateFullMapRenderTarget(SurfaceFormat.Alpha8);
             minimapRenderTarget = CreateFullMapRenderTarget(SurfaceFormat.Color);
 
+            renderWindowOrigin = Point2D.Zero;
+            mapSpaceTransform = null;
+
+            if (terrainBatcher != null)
+                terrainBatcher.ProjectionOffset = Point2D.Zero;
+            if (gameObjectBatcher != null)
+                gameObjectBatcher.ProjectionOffset = Point2D.Zero;
+
             Constants.DepthRenderStep = (float)Constants.CellSizeY / Map.HeightInPixelsWithCellHeight;
         }
 
@@ -419,6 +448,17 @@ namespace TSMapEditor.Rendering
             // In Marble Madness mode we currently need to mix and match paletted and non-paletted graphics, so there's no avoiding immediate mode.
             SetTerrainEffectParams(TheaterGraphics.TheaterPalette.GetTexture());
 
+            // Sprite-batch draws that use the custom vertex shaders (smudges, flat overlays,
+            // object line entries) rely on the WorldViewProj the batchers last uploaded.
+            // Set it explicitly so it is valid on the first frame and after the render window
+            // has moved.
+            Matrix worldViewProj = Matrix.CreateOrthographicOffCenter(
+                renderWindowOrigin.X, renderWindowOrigin.X + mapRenderTarget.Width,
+                renderWindowOrigin.Y + mapRenderTarget.Height, renderWindowOrigin.Y,
+                0, -1);
+            palettedTerrainDrawEffect.Parameters["WorldViewProj"].SetValue(worldViewProj);
+            palettedColorDrawEffect.Parameters["WorldViewProj"].SetValue(worldViewProj);
+
             terrainBatcher.Begin(null, depthRenderStencilState);
             DoForVisibleCells(DrawTerrainTileAndRegisterObjects);
             terrainBatcher.End();
@@ -461,7 +501,7 @@ namespace TSMapEditor.Rendering
 
         private void DrawMapUIElements()
         {
-            Renderer.PushRenderTarget(transparencyRenderTarget, new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null));
+            Renderer.PushRenderTarget(transparencyRenderTarget, new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, mapSpaceTransform));
             GraphicsDevice.Clear(Color.Transparent);
 
             if ((EditorState.RenderObjectFlags & RenderObjectFlags.BaseNodes) == RenderObjectFlags.BaseNodes)
@@ -516,10 +556,11 @@ namespace TSMapEditor.Rendering
             if (minimapNeedsRefresh && MinimapUsers.Count > 0)
             {
                 // If the minimap needs a full refresh, then we need to re-render the whole map
-                tlX = 0;
-                tlY = -Constants.MapYBaseline;
-                camRight = mapRenderTarget.Width;
-                camBottom = mapRenderTarget.Height;
+                // (the whole render window when the map is larger than the render targets)
+                tlX = renderWindowOrigin.X;
+                tlY = renderWindowOrigin.Y - Constants.MapYBaseline;
+                camRight = renderWindowOrigin.X + mapRenderTarget.Width;
+                camBottom = renderWindowOrigin.Y + mapRenderTarget.Height;
             }
             else
             {
@@ -1621,6 +1662,51 @@ namespace TSMapEditor.Rendering
             Color color, float angleDiff, float sideLineLength, int thickness = 1)
             => RendererExtensions.DrawArrow(start, end, color, angleDiff, sideLineLength, thickness);
 
+        /// <summary>
+        /// When the map is larger than the render targets, the render targets form a sliding
+        /// window into the map. Keeps that window covering the camera view, re-anchoring it
+        /// (with a full redraw of the window) when the camera approaches its edges.
+        /// Does nothing when the render targets cover the whole map.
+        /// </summary>
+        private void EnsureRenderWindowCoversCamera()
+        {
+            if (!IsMapClippedByRenderWindow)
+                return;
+
+            // The camera view must fit within the window, or the screen could never be covered.
+            double minZoom = Math.Max(Width / (double)mapRenderTarget.Width, Height / (double)mapRenderTarget.Height);
+            if (Camera.ZoomLevel < minZoom)
+                Camera.ZoomLevel = minZoom;
+
+            var view = GetCameraRectangle();
+            int margin = Constants.RenderPixelPadding;
+            bool covered = view.X - margin >= renderWindowOrigin.X
+                && view.Y - margin >= renderWindowOrigin.Y
+                && view.Right + margin <= renderWindowOrigin.X + mapRenderTarget.Width
+                && view.Bottom + margin <= renderWindowOrigin.Y + mapRenderTarget.Height;
+
+            if (covered)
+                return;
+
+            // Center the window on the camera view, clamped to the map and snapped to cells.
+            int newX = Math.Clamp(view.X - (mapRenderTarget.Width - view.Width) / 2, 0, Math.Max(0, Map.WidthInPixels - mapRenderTarget.Width));
+            int newY = Math.Clamp(view.Y - (mapRenderTarget.Height - view.Height) / 2, 0, Math.Max(0, Map.HeightInPixelsWithCellHeight - mapRenderTarget.Height));
+            newX -= newX % Constants.CellSizeX;
+            newY -= newY % Constants.CellSizeY;
+            var newOrigin = new Point2D(newX, newY);
+
+            // The camera can legally overscroll past map edges, where the margin test cannot be
+            // satisfied; if the origin is already optimal, keep it to avoid re-anchoring every frame.
+            if (newOrigin == renderWindowOrigin)
+                return;
+
+            renderWindowOrigin = newOrigin;
+            mapSpaceTransform = newOrigin == Point2D.Zero ? (Matrix?)null : Matrix.CreateTranslation(-newOrigin.X, -newOrigin.Y, 0);
+            terrainBatcher.ProjectionOffset = newOrigin;
+            gameObjectBatcher.ProjectionOffset = newOrigin;
+            InvalidateMap();
+        }
+
         public void Draw(bool isActive, TechnoBase technoUnderCursor, MapTile tileUnderCursor, CursorAction cursorAction)
         {
 #if !WINDOWS
@@ -1637,6 +1723,8 @@ namespace TSMapEditor.Rendering
             // Note: the cursor action's PreMapDraw is invoked by MapUI.Draw before this method,
             // so that TechnoUnderCursor assignments made by placement previews are
             // visible to DrawPerFrameTransparentElements below.
+
+            EnsureRenderWindowCoversCamera();
 
             if (mapInvalidated || cameraMoved)
             {
@@ -1669,7 +1757,8 @@ namespace TSMapEditor.Rendering
 
         private void DrawPerFrameTransparentElements(TechnoBase technoUnderCursor)
         {
-            Renderer.PushRenderTarget(transparencyPerFrameRenderTarget);
+            Renderer.PushRenderTarget(transparencyPerFrameRenderTarget,
+                new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, mapSpaceTransform));
 
             GraphicsDevice.Clear(Color.Transparent);
 
@@ -1716,26 +1805,28 @@ namespace TSMapEditor.Rendering
 
             // Constrain draw coordinates so that we don't draw out of bounds and cause weird artifacts on map edge
 
-            int sourceX = Camera.TopLeftPoint.X;
+            // The render targets hold the map area starting at renderWindowOrigin
+            // (always zero when the render targets cover the whole map).
+            int sourceX = Camera.TopLeftPoint.X - renderWindowOrigin.X;
             int destinationX = 0;
             int destinationWidth = Width;
             if (sourceX < 0)
             {
-                sourceX = 0;
-                destinationX = (int)(-Camera.TopLeftPoint.X * Camera.ZoomLevel);
+                destinationX = (int)(-sourceX * Camera.ZoomLevel);
                 destinationWidth -= destinationX;
-                zoomedWidth += Camera.TopLeftPoint.X;
+                zoomedWidth += sourceX;
+                sourceX = 0;
             }
 
-            int sourceY = Camera.TopLeftPoint.Y;
+            int sourceY = Camera.TopLeftPoint.Y - renderWindowOrigin.Y;
             int destinationY = 0;
             int destinationHeight = Height;
             if (sourceY < 0)
             {
-                sourceY = 0;
-                destinationY = (int)(-Camera.TopLeftPoint.Y * Camera.ZoomLevel);
+                destinationY = (int)(-sourceY * Camera.ZoomLevel);
                 destinationHeight -= destinationY;
-                zoomedHeight += Camera.TopLeftPoint.Y;
+                zoomedHeight += sourceY;
+                sourceY = 0;
             }
 
             if (sourceX + zoomedWidth > mapRenderTarget.Width)
@@ -1778,7 +1869,7 @@ namespace TSMapEditor.Rendering
                 // Then draw alpha effects. First, render all alpha effects into the alpha surface. Then,
                 // render the alpha surface on the composite render target using a special shader.
 
-                Renderer.PushSettings(new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, alphaImageToAlphaMapEffect));
+                Renderer.PushSettings(new SpriteBatchSettings(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, null, null, alphaImageToAlphaMapEffect, mapSpaceTransform));
                 GraphicsDevice.SetRenderTarget(alphaRenderTarget);
                 GraphicsDevice.Clear(new Color(0.5f, 0f, 0f, 0f));
 

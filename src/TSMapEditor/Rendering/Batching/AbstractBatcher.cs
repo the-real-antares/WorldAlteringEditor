@@ -27,6 +27,13 @@ namespace TSMapEditor.Rendering.Batching
 
         private bool beginCalled = false;
 
+        /// <summary>
+        /// World-space coordinate of the render target's top-left corner. Zero when the render
+        /// target covers the whole map; non-zero when the map is rendered through a sliding
+        /// window because the platform's texture size limit is smaller than the map.
+        /// </summary>
+        public GameMath.Point2D ProjectionOffset { get; set; }
+
         public AbstractBatcher(GraphicsDevice graphicsDevice, Effect effect)
         {
             _graphicsDevice = graphicsDevice;
@@ -54,8 +61,8 @@ namespace TSMapEditor.Rendering.Batching
         {
             // Build orthographic projection
             Matrix projection = Matrix.CreateOrthographicOffCenter(
-                0, _graphicsDevice.Viewport.Width,
-                _graphicsDevice.Viewport.Height, 0,
+                ProjectionOffset.X, ProjectionOffset.X + _graphicsDevice.Viewport.Width,
+                ProjectionOffset.Y + _graphicsDevice.Viewport.Height, ProjectionOffset.Y,
                 0, -1);
 
             // Upload it to the shader

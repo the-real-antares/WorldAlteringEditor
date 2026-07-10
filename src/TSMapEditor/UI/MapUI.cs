@@ -117,6 +117,7 @@ namespace TSMapEditor.UI
         }
         public Texture2D MinimapTexture => mapView.MinimapTexture;
         public HashSet<object> MinimapUsers => mapView.MinimapUsers;
+        public bool IsMapClippedByRenderWindow => mapView.IsMapClippedByRenderWindow;
 
         public Camera Camera => mapView.Camera;
         public TechnoBase TechnoUnderCursor { get; set; }
