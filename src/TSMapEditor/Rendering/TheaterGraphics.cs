@@ -99,7 +99,9 @@ namespace TSMapEditor.Rendering
         public int WorkingBufferWidth { get; }
         public int WorkingBufferHeight { get; }
 
-        public readonly byte[] WorkingBuffer;
+        // Settable so it can be released once its contents have been copied into the combined
+        // sprite sheet; each buffer is a full MaximumDX11TextureSize² allocation.
+        public byte[] WorkingBuffer;
         public int maxX = 0;                        // Width of the whole mega-texture (width of the widest row of images).
         public int maxY = 0;                        // Height of the whole mega-texture (height of all rows summed).
         public int X { get; private set; } = 0;     // Horizontal start position of the next tile.
@@ -470,6 +472,12 @@ namespace TSMapEditor.Rendering
 
         private Texture2D TextureFromBuffer(int width, int height, byte[] buffer)
         {
+            // On the browser's constrained WASM heap, reclaim the source buffers freed while
+            // combining before allocating this atlas buffer, so the allocation does not fail
+            // spuriously while collectable memory is still waiting to be released.
+            if (OperatingSystem.IsBrowser())
+                GC.Collect();
+
             // Create texture color buffer and copy the data from the working buffer to the color buffer.
             byte[] finalColorBuffer = new byte[width * height];
 
@@ -526,6 +534,13 @@ namespace TSMapEditor.Rendering
                     {
                         Buffer.BlockCopy(spriteSheetObject.WorkingBuffer, sy * spriteSheetObject.WorkingBufferWidth, hugeBuffer, (y + sy) * RenderingConstants.MaximumDX11TextureSize, spriteSheetObject.Width);
                     }
+
+                    // The source buffer is a full MaximumDX11TextureSize² allocation held only to be
+                    // copied here; a mod with many large frames can have hundreds of them resident at
+                    // once. Release each as soon as it is copied so peak memory scales with the sheets
+                    // still to process rather than the total sheet count - important on the browser's
+                    // tight WASM heap, where holding them all overflows before combining finishes.
+                    spriteSheetObject.WorkingBuffer = null;
 
                     x = Math.Max(x, spriteSheetObject.Width);
                     spriteSheetObject.YOffset = y;
