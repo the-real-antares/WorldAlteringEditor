@@ -89,7 +89,7 @@ namespace TSMapEditor.UI.TopBar
             fileContextMenu.AddItem(" ", null, () => false, null, null, null);
             fileContextMenu.AddItem(Translate(this, "File.OpenWithTextEditor", "Open With Text Editor"), OpenWithTextEditor, () => !string.IsNullOrWhiteSpace(map.LoadedINI.FileName));
             fileContextMenu.AddItem(" ", null, () => false, null, null);
-            fileContextMenu.AddItem(Translate(this, "File.Exit", "Exit"), WindowManager.CloseGame);
+            fileContextMenu.AddItem(Translate(this, "File.Exit", "Exit"), ExitEditor);
 
             var fileButton = new MenuButton(WindowManager, fileContextMenu);
             fileButton.Name = nameof(fileButton);
@@ -415,6 +415,19 @@ namespace TSMapEditor.UI.TopBar
         {
             new SmoothenIceScript().Perform(map);
             mapUI.InvalidateMap();
+        }
+
+        private void ExitEditor()
+        {
+            // The browser platform does not allow programmatically closing the game;
+            // exiting the editor there means leaving the page.
+            if (TSMapEditor.Misc.WebFileAccess.ExitPage != null)
+            {
+                TSMapEditor.Misc.WebFileAccess.ExitPage();
+                return;
+            }
+
+            WindowManager.CloseGame();
         }
 
         private void OpenMinimap()

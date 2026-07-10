@@ -17,6 +17,20 @@ namespace TSMapEditor.Misc
         /// </summary>
         public static Func<Task<string>> PickGameDirectoryAsync;
 
+        /// <summary>
+        /// Leaves the editor page. The browser platform does not allow programmatically
+        /// closing the game, so exiting means navigating away from or reloading the page.
+        /// Null when not running in the browser.
+        /// </summary>
+        public static Action ExitPage;
+
+        /// <summary>
+        /// Additional game executable names accepted when validating the game directory,
+        /// supplied through the page URL so that modified games can be loaded without
+        /// editing the editor's configuration files. Null when not set.
+        /// </summary>
+        public static string[] AdditionalExecutableNames;
+
         public static bool IsAvailable => PickGameDirectoryAsync != null;
     }
 }

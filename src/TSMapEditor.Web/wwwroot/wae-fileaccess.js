@@ -8,6 +8,9 @@ const WAE_ALLOWED_EXT = new Set([
   'tmp', 'pcx', 'fnt', 'vpl', 'exe', ''
 ]);
 
+// Leaving the editor in the browser means reloading the page (back to the start screen).
+window.waeReloadPage = () => window.location.reload();
+
 function waeExt(name) {
   const i = name.lastIndexOf('.');
   return i < 0 ? '' : name.slice(i + 1).toLowerCase();

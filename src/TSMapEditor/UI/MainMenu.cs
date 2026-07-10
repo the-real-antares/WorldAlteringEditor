@@ -4,6 +4,7 @@ using Rampastring.XNAUI;
 using Rampastring.XNAUI.XNAControls;
 using System;
 using System.IO;
+using System.Linq;
 using TSMapEditor.Settings;
 using TSMapEditor.UI.Controls;
 using TSMapEditor.UI.Windows;
@@ -353,8 +354,12 @@ namespace TSMapEditor.UI
 
         private bool VerifyGameDirectory()
         {
+            var executableNames = Constants.ExpectedClientExecutableNames.AsEnumerable();
+            if (TSMapEditor.Misc.WebFileAccess.AdditionalExecutableNames != null)
+                executableNames = executableNames.Concat(TSMapEditor.Misc.WebFileAccess.AdditionalExecutableNames);
+
             bool gameDirectoryVerified = false;
-            foreach (string expectedExecutableName in Constants.ExpectedClientExecutableNames)
+            foreach (string expectedExecutableName in executableNames)
             {
                 if (Helpers.ResolveFilePathCaseInsensitive(tbGameDirectory.Text, expectedExecutableName) != null)
                 {

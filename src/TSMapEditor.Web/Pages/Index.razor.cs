@@ -19,6 +19,21 @@ namespace TSMapEditor.Web.Pages
             TSMapEditor.Misc.WebFileAccess.PickGameDirectoryAsync =
                 () => JsRuntime.InvokeAsync<string>("waeLoadGameDirectory").AsTask();
 
+            // The browser platform cannot programmatically close the game; exiting reloads the page.
+            TSMapEditor.Misc.WebFileAccess.ExitPage =
+                () => JsRuntime.InvokeVoidAsync("waeReloadPage");
+
+            // Accept additional game executable names from the URL (e.g. ?exe=mymod.exe) so
+            // modified games can be loaded without editing the editor's configuration.
+            string exeOverride = GetQueryValue("exe");
+            if (!string.IsNullOrEmpty(exeOverride))
+            {
+                TSMapEditor.Misc.WebFileAccess.AdditionalExecutableNames = exeOverride
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(name => name.IndexOfAny(new[] { '/', '\\' }) < 0 && name.Length <= 64)
+                    .ToArray();
+            }
+
             try
             {
                 byte[] bytes = await Http.GetByteArrayAsync(GetAssetBundleName());
@@ -54,22 +69,30 @@ namespace TSMapEditor.Web.Pages
         /// </summary>
         private string GetAssetBundleName()
         {
-            var query = new Uri(Navigation.Uri).Query;
-            if (!string.IsNullOrEmpty(query))
-            {
-                foreach (string pair in query.TrimStart('?').Split('&'))
-                {
-                    string[] parts = pair.Split('=');
-                    if (parts.Length == 2 && parts[0] == "game")
-                    {
-                        string game = Uri.UnescapeDataString(parts[1]).ToLowerInvariant();
-                        if (game.Length > 0 && game.Length <= 16 && game.All(char.IsLetterOrDigit))
-                            return $"waeassets-{game}.zip";
-                    }
-                }
-            }
+            string game = GetQueryValue("game")?.ToLowerInvariant();
+            if (!string.IsNullOrEmpty(game) && game.Length <= 16 && game.All(char.IsLetterOrDigit))
+                return $"waeassets-{game}.zip";
 
             return "waeassets.zip";
+        }
+
+        /// <summary>
+        /// Returns the value of a query parameter of the page URL, or null when not present.
+        /// </summary>
+        private string GetQueryValue(string name)
+        {
+            var query = new Uri(Navigation.Uri).Query;
+            if (string.IsNullOrEmpty(query))
+                return null;
+
+            foreach (string pair in query.TrimStart('?').Split('&'))
+            {
+                string[] parts = pair.Split('=');
+                if (parts.Length == 2 && parts[0] == name)
+                    return Uri.UnescapeDataString(parts[1]);
+            }
+
+            return null;
         }
 
         protected override void OnAfterRender(bool firstRender)
