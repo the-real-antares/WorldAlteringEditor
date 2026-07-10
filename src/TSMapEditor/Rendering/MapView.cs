@@ -299,7 +299,7 @@ namespace TSMapEditor.Rendering
             alphaRenderTarget = CreateFullMapRenderTarget(SurfaceFormat.Alpha8);
             minimapRenderTarget = CreateFullMapRenderTarget(SurfaceFormat.Color);
 
-            Constants.DepthRenderStep = (float)Constants.CellSizeY / mapRenderTarget.Height;
+            Constants.DepthRenderStep = (float)Constants.CellSizeY / Map.HeightInPixelsWithCellHeight;
         }
 
         private void CreateDepthStencilStates()
@@ -1656,8 +1656,8 @@ namespace TSMapEditor.Rendering
                 MapWideOverlay.Draw(new Rectangle(
                         (int)(-Camera.TopLeftPoint.X * Camera.ZoomLevel),
                         (int)((-Camera.TopLeftPoint.Y + Constants.MapYBaseline) * Camera.ZoomLevel),
-                        (int)(mapRenderTarget.Width * Camera.ZoomLevel),
-                        (int)((mapRenderTarget.Height - Constants.MapYBaseline) * Camera.ZoomLevel)));
+                        (int)(Map.WidthInPixels * Camera.ZoomLevel),
+                        (int)((Map.HeightInPixelsWithCellHeight - Constants.MapYBaseline) * Camera.ZoomLevel)));
             }
 
             if (isActive && tileUnderCursor != null && cursorAction != null)
@@ -1892,7 +1892,14 @@ namespace TSMapEditor.Rendering
                 sourceRectangle = new Rectangle(0, 0, compositeRenderTarget.Width, compositeRenderTarget.Height);
             }
 
-            texture = new RenderTarget2D(GraphicsDevice, sourceRectangle.Width, sourceRectangle.Height, false, SurfaceFormat.Color, DepthFormat.None);
+            int textureWidth = sourceRectangle.Width;
+            int textureHeight = sourceRectangle.Height;
+#if !WINDOWS
+            // WebGL / KNI HiDef caps textures at 4096; see CreateFullMapRenderTarget.
+            textureWidth = System.Math.Min(textureWidth, 4096);
+            textureHeight = System.Math.Min(textureHeight, 4096);
+#endif
+            texture = new RenderTarget2D(GraphicsDevice, textureWidth, textureHeight, false, SurfaceFormat.Color, DepthFormat.None);
 
             Renderer.BeginDraw();
             Renderer.PushRenderTarget(texture);
