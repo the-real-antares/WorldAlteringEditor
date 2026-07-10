@@ -169,11 +169,11 @@ async function waeDownloadHostedFiles(FS, game, dir) {
       count++;
       doneBytes += total;
       if (totalBytes > 0)
-        document.title = 'WAE - downloading game files ' + Math.round(100 * doneBytes / totalBytes) + '%';
+        document.title = 'World-Altering Editor - downloading game files ' + Math.round(100 * doneBytes / totalBytes) + '%';
     }
   }
   await Promise.all([worker(), worker(), worker(), worker()]);
-  document.title = 'TSMapEditor.Web';
+  document.title = 'World-Altering Editor';
   return count;
 }
 
