@@ -132,21 +132,11 @@ namespace TSMapEditor.Rendering
             AssetLoader.AssetSearchPaths.Add(Path.Combine(Environment.CurrentDirectory, "Config", "Translations", TranslatorSetup.ActiveTranslationDirectory()));
             AssetLoader.AssetSearchPaths.Add(Environment.CurrentDirectory + DSC + "Content" + DSC);
 
-            // Hack: allow translations to override fonts
-            int i = 0;
-            while (true)
-            {
-                string spriteFontPath = Path.Combine("Translations", TranslatorSetup.ActiveTranslationDirectory(), "SpriteFont" + i + ".xnb");
-                if (AssetLoader.AssetExists(Path.Combine(Environment.CurrentDirectory, "Config", spriteFontPath)))
-                {
-                    var spriteFont = Content.Load<SpriteFont>(spriteFontPath);
-                    Renderer.GetFontList()[i] = spriteFont;
-                }
-                else
-                {
-                    break;
-                }
-            }
+            // A translation can override the editor's fonts by shipping SpriteFont0.xnb,
+            // SpriteFont1.xnb etc. in its directory: the active translation's directory is
+            // added to the asset search paths above, ahead of the default Content directory,
+            // and Renderer.LoadFonts (called from WindowManager initialization below) loads
+            // the fonts from those search paths in order.
 
             windowManager = new WindowManager(this, graphics);
             windowManager.Initialize(Content, Environment.CurrentDirectory + DSC + "Content" + DSC);
