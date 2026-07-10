@@ -173,7 +173,7 @@ namespace TSMapEditor.UI.TopBar
             viewContextMenu.AddItem(Translate(this, "View.ToggleIceGrowthPreview", "Toggle IceGrowth Preview"), () => mapUI.EditorState.HighlightIceGrowth = !mapUI.EditorState.HighlightIceGrowth, null, null, null);
             viewContextMenu.AddItem(Translate(this, "View.ToggleExtraGraphicsIn2DMode", "Toggle Extra Graphics in 2D Mode"), ToggleExtraGraphicsIn2DMode, null, null, null);
             viewContextMenu.AddItem(" ", null, () => false, null, null);
-            viewContextMenu.AddItem(Translate(this, "View.ViewMinimap", "View Minimap"), () => windowController.MinimapWindow.Open());
+            viewContextMenu.AddItem(Translate(this, "View.ViewMinimap", "View Minimap"), OpenMinimap);
             viewContextMenu.AddItem(" ", null, () => false, null, null);
             viewContextMenu.AddItem(Translate(this, "View.FindWaypoint", "Find Waypoint..."), () => windowController.FindWaypointWindow.Open());
             viewContextMenu.AddItem(Translate(this, "View.CenterOfMap", "Center of Map"), () => mapUI.Camera.CenterOnMapCenterCell());
@@ -415,6 +415,20 @@ namespace TSMapEditor.UI.TopBar
         {
             new SmoothenIceScript().Perform(map);
             mapUI.InvalidateMap();
+        }
+
+        private void OpenMinimap()
+        {
+            if (mapUI.IsMapClippedByRenderWindow)
+            {
+                EditorMessageBox.Show(WindowManager, Translate(this, "MinimapUnavailable.Title", "Minimap not available"),
+                    Translate(this, "MinimapUnavailable.Description", "The minimap is not available on this platform for maps larger than 4096 pixels."),
+                    MessageBoxButtons.OK);
+
+                return;
+            }
+
+            windowController.MinimapWindow.Open();
         }
 
         private void ToggleExtraGraphicsIn2DMode()

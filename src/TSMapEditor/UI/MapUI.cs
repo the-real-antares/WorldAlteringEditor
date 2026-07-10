@@ -221,6 +221,15 @@ namespace TSMapEditor.UI
 
         private void MegamapGenerationOptionsWindow_OnGeneratePreview(object sender, MegamapRenderOptions e)
         {
+            if (IsMapClippedByRenderWindow)
+            {
+                EditorMessageBox.Show(WindowManager, Translate(this, "MegamapUnavailable.Title", "Megamap not available"),
+                    Translate(this, "MegamapUnavailable.Description", "Megamap generation is not available on this platform for maps larger than 4096 pixels."),
+                    MessageBoxButtons.OK);
+
+                return;
+            }
+
             if (windowController.MegamapGenerationOptionsWindow.IsForPreview)
             {
                 mapView.AddPreviewToMap(e);
