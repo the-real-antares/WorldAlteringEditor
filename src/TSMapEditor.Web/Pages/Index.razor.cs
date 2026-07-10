@@ -29,6 +29,11 @@ namespace TSMapEditor.Web.Pages
 
             // Accept additional game executable names from the URL (e.g. ?exe=mymod.exe) so
             // modified games can be loaded without editing the editor's configuration.
+            // Requesting server-hosted game files loads the game directory automatically,
+            // without the user needing to press Browse first (the download needs no gesture).
+            if (GetQueryValue("files") == "hosted")
+                TSMapEditor.Misc.WebFileAccess.AutoLoadGameDirectory = true;
+
             string exeOverride = GetQueryValue("exe");
             if (!string.IsNullOrEmpty(exeOverride))
             {

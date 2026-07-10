@@ -45,6 +45,13 @@ namespace TSMapEditor.Misc
         /// </summary>
         public static string PendingMapPath;
 
+        /// <summary>
+        /// When true, the game directory is loaded automatically as soon as the main menu
+        /// opens, without waiting for the user to press Browse. Set when the page URL requests
+        /// server-hosted game files (which download without needing a folder picker gesture).
+        /// </summary>
+        public static bool AutoLoadGameDirectory;
+
         public static bool IsAvailable => PickGameDirectoryAsync != null;
     }
 }

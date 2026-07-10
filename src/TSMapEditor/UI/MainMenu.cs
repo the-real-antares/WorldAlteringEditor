@@ -233,6 +233,16 @@ namespace TSMapEditor.UI
                     loadingStage++;
                 }
             }
+
+#if !WINDOWS
+            // With server-hosted game files, start loading the game directory right away so the
+            // user does not have to press Browse; the download runs without a folder-picker gesture.
+            if (Misc.WebFileAccess.IsAvailable && Misc.WebFileAccess.AutoLoadGameDirectory)
+            {
+                Misc.WebFileAccess.AutoLoadGameDirectory = false;
+                _ = BrowseGameDirectoryInBrowserAsync();
+            }
+#endif
         }
 
         private void RecentFilesPanel_FileSelected(object sender, FileSelectedEventArgs e)
