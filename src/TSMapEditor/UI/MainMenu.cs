@@ -442,6 +442,14 @@ namespace TSMapEditor.UI
             {
                 tbGameDirectory.Text = path;
                 InputIgnoreTime = TimeSpan.FromSeconds(Constants.UIAccidentalClickPreventionTime);
+
+                // A map passed through the page URL is opened as soon as the game directory is known.
+                if (!string.IsNullOrEmpty(Misc.WebFileAccess.PendingMapPath))
+                {
+                    tbMapPath.Text = Misc.WebFileAccess.PendingMapPath;
+                    Misc.WebFileAccess.PendingMapPath = null;
+                    BtnLoad_LeftClick(this, EventArgs.Empty);
+                }
             }
         }
 #endif

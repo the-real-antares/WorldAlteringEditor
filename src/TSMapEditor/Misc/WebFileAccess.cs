@@ -38,6 +38,13 @@ namespace TSMapEditor.Misc
         /// </summary>
         public static Action<string> ExportMapFile;
 
+        /// <summary>
+        /// Virtual filesystem path of a map that was passed to the page through the URL,
+        /// to be opened automatically once the game directory has been selected.
+        /// Null when not set.
+        /// </summary>
+        public static string PendingMapPath;
+
         public static bool IsAvailable => PickGameDirectoryAsync != null;
     }
 }
