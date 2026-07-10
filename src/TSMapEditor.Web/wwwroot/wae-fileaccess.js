@@ -11,6 +11,54 @@ const WAE_ALLOWED_EXT = new Set([
 // Leaving the editor in the browser means reloading the page (back to the start screen).
 window.waeReloadPage = () => window.location.reload();
 
+// Exports a map file saved into the virtual filesystem to the user's real filesystem.
+// Chromium: a save dialog on the first save, silent writes to the same file afterwards.
+// Other browsers: a regular download per save.
+const waeSaveHandles = new Map();
+
+window.waeExportMapFile = async (path) => {
+  let bytes;
+  try {
+    bytes = waeFS().readFile(path);
+  } catch (e) {
+    console.error('WAE: cannot read saved map from virtual filesystem: ' + e);
+    return;
+  }
+  const fileName = path.split('/').pop();
+
+  if (window.showSaveFilePicker) {
+    try {
+      let handle = waeSaveHandles.get(path);
+      if (!handle) {
+        handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: 'Map files', accept: { 'text/plain': ['.map', '.mpr', '.yrm', '.ini'] } }],
+        });
+        waeSaveHandles.set(path, handle);
+      }
+      const writable = await handle.createWritable();
+      await writable.write(bytes);
+      await writable.close();
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError')
+        return; // user cancelled the save dialog
+      console.error('WAE: save dialog export failed, falling back to download: ' + e);
+      waeSaveHandles.delete(path);
+    }
+  }
+
+  const blob = new Blob([bytes], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
 function waeExt(name) {
   const i = name.lastIndexOf('.');
   return i < 0 ? '' : name.slice(i + 1).toLowerCase();

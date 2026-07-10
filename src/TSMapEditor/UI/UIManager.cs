@@ -402,6 +402,11 @@ namespace TSMapEditor.UI
                 notificationManager.AddNotification(Translate(this, "MapSaved", "Map saved."));
                 RefreshWindowTitle();
                 CheckForIssuesAfterManualSave(s, e);
+
+                // In the browser the map was written into the virtual filesystem;
+                // export it to the user's real filesystem.
+                if (TSMapEditor.Misc.WebFileAccess.ExportMapFile != null && !string.IsNullOrEmpty(map.LoadedINI.FileName))
+                    TSMapEditor.Misc.WebFileAccess.ExportMapFile(map.LoadedINI.FileName);
             };
 
             map.MapAutoSaved += (s, e) => notificationManager.AddNotification(Translate(this, "MapAutoSaved", "Map auto-saved."));

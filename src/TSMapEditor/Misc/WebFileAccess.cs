@@ -31,6 +31,13 @@ namespace TSMapEditor.Misc
         /// </summary>
         public static string[] AdditionalExecutableNames;
 
+        /// <summary>
+        /// Exports a map file saved into the browser's virtual filesystem to the user's
+        /// real filesystem (a save dialog or a download, depending on the browser).
+        /// Null when not running in the browser.
+        /// </summary>
+        public static Action<string> ExportMapFile;
+
         public static bool IsAvailable => PickGameDirectoryAsync != null;
     }
 }

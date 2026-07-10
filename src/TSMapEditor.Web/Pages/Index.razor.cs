@@ -23,6 +23,10 @@ namespace TSMapEditor.Web.Pages
             TSMapEditor.Misc.WebFileAccess.ExitPage =
                 () => JsRuntime.InvokeVoidAsync("waeReloadPage");
 
+            // Saved maps land in the virtual filesystem; export them to the user's disk.
+            TSMapEditor.Misc.WebFileAccess.ExportMapFile =
+                path => JsRuntime.InvokeVoidAsync("waeExportMapFile", path);
+
             // Accept additional game executable names from the URL (e.g. ?exe=mymod.exe) so
             // modified games can be loaded without editing the editor's configuration.
             string exeOverride = GetQueryValue("exe");
