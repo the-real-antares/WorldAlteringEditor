@@ -253,7 +253,29 @@ window.waeLoadGameDirectory = async () => {
     }
 
     if (window.showDirectoryPicker) {
-      const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+      let dirHandle = null;
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+      } catch (e) {
+        // The modern picker refuses to open system locations such as Program Files (where
+        // Steam installs games by default), and also throws when the user cancels. Offer the
+        // classic <input webkitdirectory> picker, which is not subject to that block.
+        const useClassic = window.confirm(
+          'Could not open that folder.\n\n' +
+          'Browsers block reading system locations like "Program Files", where Steam installs ' +
+          'games by default.\n\n' +
+          'Click OK to use the classic folder picker (it can read those folders), or Cancel and ' +
+          'copy your game folder somewhere like your Desktop first.');
+        if (!useClassic)
+          return '';
+        const files = await waePickViaInput();
+        if (!files)
+          return '';
+        waeResetGameDir(FS, '/game');
+        count = await waeWriteInputFiles(FS, files, '/game');
+        console.log('WAE: loaded ' + count + ' game files into /game (classic picker)');
+        return '/game';
+      }
       waeResetGameDir(FS, '/game');
       count = await waeWalkAndWrite(FS, dirHandle, '/game');
     } else {
