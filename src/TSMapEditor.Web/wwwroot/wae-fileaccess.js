@@ -240,8 +240,19 @@ window.waeLoadGameDirectory = async () => {
 
     if (params.get('files') === 'hosted') {
       const game = (params.get('game') || 'yr').toLowerCase();
-      count = await waeDownloadHostedFiles(FS, game, '/game');
-    } else if (window.showDirectoryPicker) {
+      try {
+        count = await waeDownloadHostedFiles(FS, game, '/game');
+        console.log('WAE: loaded ' + count + ' game files into /game');
+        return '/game';
+      } catch (e) {
+        // No hosted set for this game (or the download failed): tell the user and
+        // fall through to the regular folder picker so Browse still works.
+        console.error('WAE: hosted game files unavailable: ' + e);
+        alert('Hosted game files are not available for "' + game + '" (' + e.message + ').\n\nPick your local game folder instead.');
+      }
+    }
+
+    if (window.showDirectoryPicker) {
       const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
       waeResetGameDir(FS, '/game');
       count = await waeWalkAndWrite(FS, dirHandle, '/game');
