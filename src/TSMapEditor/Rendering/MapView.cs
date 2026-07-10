@@ -1673,17 +1673,26 @@ namespace TSMapEditor.Rendering
             if (!IsMapClippedByRenderWindow)
                 return;
 
-            // The camera view must fit within the window, or the screen could never be covered.
-            double minZoom = Math.Max(Width / (double)mapRenderTarget.Width, Height / (double)mapRenderTarget.Height);
+            // Slack kept between the camera view and the window edges. Re-anchoring fully
+            // invalidates the window, which costs several times an ordinary scroll frame, so the
+            // camera must be able to travel a good distance before the next re-anchor. Without
+            // reserved slack, a view that exactly fits the window would re-anchor on every
+            // scrolled pixel and make scrolling multiple times slower.
+            const int windowMargin = 256;
+
+            // The camera view must fit within the window with slack to spare,
+            // or the screen could never be covered.
+            double minZoom = Math.Max(
+                Width / (double)(mapRenderTarget.Width - 2 * windowMargin),
+                Height / (double)(mapRenderTarget.Height - 2 * windowMargin));
             if (Camera.ZoomLevel < minZoom)
                 Camera.ZoomLevel = minZoom;
 
             var view = GetCameraRectangle();
-            int margin = Constants.RenderPixelPadding;
-            bool covered = view.X - margin >= renderWindowOrigin.X
-                && view.Y - margin >= renderWindowOrigin.Y
-                && view.Right + margin <= renderWindowOrigin.X + mapRenderTarget.Width
-                && view.Bottom + margin <= renderWindowOrigin.Y + mapRenderTarget.Height;
+            bool covered = view.X - windowMargin >= renderWindowOrigin.X
+                && view.Y - windowMargin >= renderWindowOrigin.Y
+                && view.Right + windowMargin <= renderWindowOrigin.X + mapRenderTarget.Width
+                && view.Bottom + windowMargin <= renderWindowOrigin.Y + mapRenderTarget.Height;
 
             if (covered)
                 return;
