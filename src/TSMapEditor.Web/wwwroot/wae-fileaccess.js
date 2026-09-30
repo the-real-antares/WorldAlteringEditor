@@ -15,6 +15,50 @@ window.waeReloadPage = () => window.location.reload();
 // Chromium: a save dialog on the first save, silent writes to the same file afterwards.
 // Other browsers: a regular download per save.
 const waeSaveHandles = new Map();
+const WAE_ANTARES_CLIENT_ORIGIN = 'https://the-real-antares.com';
+
+// Antares can open WAE with an explicit, unguessable browser-session handoff. The editor
+// never contacts the localhost agent itself: it returns a copy of the saved
+// bytes to the exact opener/origin, where the client still asks before install.
+function waeAntaresHandoff() {
+  if (!window.opener || window.opener.closed)
+    return null;
+
+  const query = new URLSearchParams(window.location.search);
+  const originText = query.get('antaresOrigin');
+  const nonce = query.get('antaresHandoff');
+  if (!originText || !nonce || !/^[A-Za-z0-9_-]{32,128}$/.test(nonce))
+    return null;
+
+  try {
+    const origin = new URL(originText);
+    const localDevelopment = origin.protocol === 'http:' &&
+      (origin.hostname === 'localhost' || origin.hostname === '127.0.0.1' || origin.hostname === '[::1]');
+    const production = origin.origin === WAE_ANTARES_CLIENT_ORIGIN;
+    if ((!production && !localDevelopment) || origin.origin !== originText)
+      return null;
+    return { origin: origin.origin, nonce };
+  } catch (_) {
+    return null;
+  }
+}
+
+function waeReturnMapToAntares(path, bytes) {
+  const handoff = waeAntaresHandoff();
+  if (!handoff)
+    return false;
+
+  const fileName = path.split('/').pop();
+  const copy = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  window.opener.postMessage({
+    kind: 'antares-wae-map',
+    version: 1,
+    handoff: handoff.nonce,
+    fileName,
+    bytes: copy,
+  }, handoff.origin, [copy]);
+  return true;
+}
 
 window.waeExportMapFile = async (path) => {
   let bytes;
@@ -25,6 +69,9 @@ window.waeExportMapFile = async (path) => {
     return;
   }
   const fileName = path.split('/').pop();
+
+  if (waeReturnMapToAntares(path, bytes))
+    return;
 
   if (window.showSaveFilePicker) {
     try {
